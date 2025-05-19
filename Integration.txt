@@ -1,0 +1,560 @@
+Here's a **step-by-step integration guide** for your vehicle management system, covering authentication, CRUD operations, pagination, and search:
+
+---
+
+### **1. Authentication Setup**
+#### **Login & Signup Flow**
+```javascript
+// src/services/authService.js
+import axios from 'axios';
+import { API_BASE_URL } from '../config/appConfig';
+
+export const login = async (email, password) => {
+  const response = await axios.post(`${API_BASE_URL}/auth/login`, { email, password });
+  localStorage.setItem('token', response.data.accessToken);
+  localStorage.setItem('refreshToken', response.data.refreshToken);
+  return response.data.user;
+};
+
+export const signup = async (userData) => {
+  const response = await axios.post(`${API_BASE_URL}/auth/signup`, userData);
+  return response.data;
+};
+
+export const logout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+};
+```
+
+#### **Protected Routes (React Router)**
+```javascript
+// src/App.jsx
+import { Routes, Route, Navigate } from 'react-router-dom';
+
+const PrivateRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  return token ? children : <Navigate to="/login" />;
+};
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route
+        path="/vehicles"
+        element={
+          <PrivateRoute>
+            <VehiclesPage />
+          </PrivateRoute>
+        }
+      />
+    </Routes>
+  );
+}
+```
+
+---
+
+### **2. Vehicle CRUD Integration**
+#### **Fetch Vehicles (with Pagination/Search)**
+```javascript
+// src/components/VehicleList.jsx
+import { useEffect, useState } from 'react';
+import { useVehicle } from '../hooks/useVehicle';
+
+const VehicleList = () => {
+  const { vehicles, loading, error, fetchVehicles } = useVehicle();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [pagination, setPagination] = useState({ page: 1, limit: 10 });
+
+  useEffect(() => {
+    fetchVehicles({ ...pagination, search: searchTerm });
+  }, [pagination.page, searchTerm]);
+
+  return (
+    <div>
+      <input
+        placeholder="Search vehicles..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
+      {vehicles.map(vehicle => (
+        <VehicleCard key={vehicle.id} vehicle={vehicle} />
+      ))}
+      <button 
+        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+        disabled={pagination.page === 1}
+      >
+        Previous
+      </button>
+      <button onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}>
+        Next
+      </button>
+    </div>
+  );
+};
+```
+
+#### **Create/Update Vehicle**
+```javascript
+// src/components/VehicleForm.jsx
+import { useVehicle } from '../hooks/useVehicle';
+
+const VehicleForm = ({ vehicleToEdit }) => {
+  const { createVehicle, modifyVehicle } = useVehicle();
+
+  const handleSubmit = async (formData) => {
+    if (vehicleToEdit) {
+      await modifyVehicle(vehicleToEdit.id, formData);
+    } else {
+      await createVehicle(formData);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+    </form>
+  );
+};
+```
+
+#### **Delete Vehicle**
+```javascript
+// src/components/VehicleCard.jsx
+import { useVehicle } from '../hooks/useVehicle';
+
+const VehicleCard = ({ vehicle }) => {
+  const { removeVehicle } = useVehicle();
+
+  return (
+    <div>
+      <h3>{vehicle.plateNumber}</h3>
+      <button onClick={() => removeVehicle(vehicle.id)}>Delete</button>
+    </div>
+  );
+};
+```
+
+---
+
+### **3. Backend API Requirements**
+Ensure your backend implements these endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/auth/login` | POST | `{ email, password } → { accessToken, refreshToken }` |
+| `/auth/signup` | POST | User registration |
+| `/vehicles` | GET | `?page=1&limit=10&search=term` |
+| `/vehicles` | POST | Create vehicle |
+| `/vehicles/:id` | PUT | Update vehicle |
+| `/vehicles/:id` | DELETE | Remove vehicle |
+| `/vehicles/bulk` | POST | Bulk create |
+
+---
+
+### **4. Error Handling**
+#### **Global Error Boundary (React)**
+```javascript
+// src/ErrorBoundary.jsx
+import { ErrorBoundary } from 'react-error-boundary';
+
+function ErrorFallback({ error, resetErrorBoundary }) {
+  return (
+    <div>
+      <p>Something went wrong:</p>
+      <pre>{error.message}</pre>
+      <button onClick={resetErrorBoundary}>Try again</button>
+    </div>
+  );
+}
+
+// Wrap your app
+<ErrorBoundary FallbackComponent={ErrorFallback}>
+  <App />
+</ErrorBoundary>
+```
+
+#### **API Error Responses**
+Ensure your backend returns consistent errors:
+```json
+{
+  "statusCode": 401,
+  "message": "Invalid token"
+}
+```
+
+---
+
+### **5. Pagination/Search UI**
+```javascript
+// src/components/PaginationControls.jsx
+const PaginationControls = ({ pagination, setPagination, totalPages }) => {
+  return (
+    <div>
+      <button 
+        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+        disabled={pagination.page === 1}
+      >
+        Previous
+      </button>
+      <span>Page {pagination.page} of {totalPages}</span>
+      <button 
+        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+        disabled={pagination.page >= totalPages}
+      >
+        Next
+      </button>
+    </div>
+  );
+};
+```
+
+---
+
+### **Integration Summary**
+1. **Auth**:  
+   - Login/signup → Store tokens  
+   - Protect routes with `PrivateRoute`
+
+2. **CRUD**:  
+   - Use `useVehicle` hooks in components  
+   - Pass pagination/search params to `fetchVehicles`
+
+3. **UI**:  
+   - Forms for create/update  
+   - Pagination controls  
+   - Search input  
+
+4. **Error Handling**:  
+   - Global boundaries + API error parsing  
+
+5. **Backend**:  
+   - Ensure endpoints match expected formats  
+
+This setup provides a **complete**, **secure**, and **scalable** integration for your vehicle management system.
+
+
+Here's a **comprehensive, step-by-step guide** to integrate your vehicle management system, covering every critical aspect from authentication to CRUD operations:
+
+---
+
+### **1. Authentication Setup**
+
+#### **A. Backend API Requirements**
+Your backend must provide these endpoints:
+
+| Endpoint         | Method | Request Body                     | Response                          |
+|------------------|--------|----------------------------------|-----------------------------------|
+| `/auth/login`    | POST   | `{ email, password }`            | `{ accessToken, refreshToken, user }` |
+| `/auth/signup`   | POST   | `{ name, email, password, ... }` | `{ user }`                        |
+| `/auth/refresh`  | POST   | `{ refreshToken }`               | `{ accessToken, refreshToken }`   |
+
+#### **B. Frontend Auth Service**
+Create `authService.js`:
+
+```javascript
+// src/services/authService.js
+import axios from 'axios';
+import { API_BASE_URL } from '../config/appConfig';
+
+export const login = async (credentials) => {
+  const response = await axios.post(`${API_BASE_URL}/auth/login`, credentials);
+  localStorage.setItem('token', response.data.accessToken);
+  localStorage.setItem('refreshToken', response.data.refreshToken);
+  return response.data.user;
+};
+
+export const signup = async (userData) => {
+  const response = await axios.post(`${API_BASE_URL}/auth/signup`, userData);
+  return response.data;
+};
+
+export const logout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+};
+
+export const refreshToken = async () => {
+  const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+    refreshToken: localStorage.getItem('refreshToken')
+  });
+  localStorage.setItem('token', response.data.accessToken);
+  return response.data.accessToken;
+};
+```
+
+#### **C. Protected Routes**
+Set up route protection in React:
+
+```javascript
+// src/App.jsx
+import { Routes, Route, Navigate } from 'react-router-dom';
+
+const PrivateRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  return token ? children : <Navigate to="/login" />;
+};
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route
+        path="/vehicles"
+        element={
+          <PrivateRoute>
+            <VehiclesPage />
+          </PrivateRoute>
+        }
+      />
+    </Routes>
+  );
+}
+```
+
+---
+
+### **2. Vehicle Service Integration**
+
+#### **A. Backend API Requirements**
+Your backend must support:
+
+| Endpoint            | Method | Parameters               | Request Body       | Response          |
+|---------------------|--------|--------------------------|--------------------|-------------------|
+| `/vehicles`         | GET    | `?page=1&limit=10&search=` | -                  | `{ vehicles, totalPages }` |
+| `/vehicles`         | POST   | -                        | Vehicle data       | `{ vehicle }`     |
+| `/vehicles/:id`     | PUT    | -                        | Updated data       | `{ vehicle }`     |
+| `/vehicles/:id`     | DELETE | -                        | -                  | `{ success }`     |
+| `/vehicles/bulk`    | POST   | -                        | Array of vehicles  | `{ created }`     |
+
+#### **B. Frontend Service Layer**
+Update `vehicleService.js` (as previously optimized with interceptors).
+
+#### **C. React Hook (`useVehicle`)**
+Implement the hook for state management:
+
+```javascript
+// src/hooks/useVehicle.js
+import { useState } from 'react';
+import { 
+  getAllVehicles, 
+  addVehicle, 
+  updateVehicle, 
+  deleteVehicle, 
+  bulkAddVehicles 
+} from '../services/vehicleService';
+
+export const useVehicle = () => {
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchVehicles = async ({ page = 1, limit = 10, search = '' }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getAllVehicles({ page, limit, search });
+      setVehicles(response.data.vehicles);
+      return response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Similar implementations for:
+  // createVehicle, modifyVehicle, removeVehicle, createBulkVehicles
+  // ... (Refer to previous optimized version)
+
+  return {
+    vehicles,
+    loading,
+    error,
+    fetchVehicles,
+    createVehicle,
+    modifyVehicle,
+    removeVehicle,
+    createBulkVehicles,
+    clearError: () => setError(null)
+  };
+};
+```
+
+---
+
+### **3. UI Component Integration**
+
+#### **A. Vehicle List with Pagination/Search**
+```javascript
+// src/components/VehicleList.jsx
+import { useEffect, useState } from 'react';
+import { useVehicle } from '../hooks/useVehicle';
+
+const VehicleList = () => {
+  const { vehicles, loading, error, fetchVehicles } = useVehicle();
+  const [filters, setFilters] = useState({
+    page: 1,
+    limit: 10,
+    search: ''
+  });
+
+  useEffect(() => {
+    fetchVehicles(filters);
+  }, [filters.page, filters.search]);
+
+  return (
+    <div>
+      {/* Search Input */}
+      <input
+        placeholder="Search..."
+        value={filters.search}
+        onChange={(e) => setFilters({ ...filters, search: e.target.value, page: 1 })}
+      />
+
+      {/* Vehicle List */}
+      {loading ? (
+        <p>Loading...</p>
+      ) : error ? (
+        <p>Error: {error}</p>
+      ) : (
+        <ul>
+          {vehicles.map(vehicle => (
+            <li key={vehicle.id}>{vehicle.plateNumber}</li>
+          ))}
+        </ul>
+      )}
+
+      {/* Pagination */}
+      <button 
+        onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
+        disabled={filters.page === 1}
+      >
+        Previous
+      </button>
+      <span>Page {filters.page}</span>
+      <button 
+        onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
+      >
+        Next
+      </button>
+    </div>
+  );
+};
+```
+
+#### **B. Vehicle Form (Create/Edit)**
+```javascript
+// src/components/VehicleForm.jsx
+import { useState } from 'react';
+import { useVehicle } from '../hooks/useVehicle';
+
+const VehicleForm = ({ vehicleToEdit, onSuccess }) => {
+  const { createVehicle, modifyVehicle } = useVehicle();
+  const [formData, setFormData] = useState(vehicleToEdit || {
+    plateNumber: '',
+    vehicleType: 'Car',
+    size: 'Medium',
+    model: '',
+    color: '',
+    year: new Date().getFullYear()
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (vehicleToEdit) {
+        await modifyVehicle(vehicleToEdit.id, formData);
+      } else {
+        await createVehicle(formData);
+      }
+      onSuccess();
+    } catch (error) {
+      console.error('Operation failed:', error);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        value={formData.plateNumber}
+        onChange={(e) => setFormData({...formData, plateNumber: e.target.value})}
+        placeholder="Plate Number"
+        required
+      />
+      {/* Other form fields */}
+      <button type="submit">
+        {vehicleToEdit ? 'Update Vehicle' : 'Add Vehicle'}
+      </button>
+    </form>
+  );
+};
+```
+
+---
+
+### **4. Error Handling & Validation**
+
+#### **A. Backend Validation (Example)**
+```javascript
+// Backend route handler
+router.post('/vehicles', validate(createVehicleSchema), (req, res) => {
+  // Process valid data
+});
+```
+
+#### **B. Frontend Error Display**
+```javascript
+// In your components
+{error && (
+  <div className="alert alert-error">
+    <p>{error}</p>
+    <button onClick={clearError}>Dismiss</button>
+  </div>
+)}
+```
+
+---
+
+### **5. Deployment Checklist**
+
+1. **Environment Variables**:
+   - Set `API_BASE_URL` in production
+   - Configure CORS on the backend
+
+2. **Token Security**:
+   - Use `HttpOnly` cookies in production
+   - Implement token expiration (e.g., 15-30 minutes for access tokens)
+
+3. **Testing**:
+   - Verify all CRUD operations
+   - Test expired token flow
+   - Validate pagination/search
+
+---
+
+### **Complete Flow Summary**
+
+1. **User Authentication**:
+   - Login → Store tokens → Access protected routes
+   - Auto-refresh tokens when expired
+
+2. **Vehicle Management**:
+   - Fetch paginated/searchable lists
+   - Create/update/delete vehicles
+   - Handle bulk operations
+
+3. **State Management**:
+   - Local state for UI (forms, filters)
+   - Global state for vehicles (via custom hook)
+
+4. **Error Recovery**:
+   - Auto-redirect on 401 errors
+   - User-friendly error messages
+
+This end-to-end implementation ensures a **robust**, **maintainable**, and **user-friendly** vehicle management system. Each component works together seamlessly while handling edge cases gracefully.

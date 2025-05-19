@@ -1,0 +1,402 @@
+# Understanding Promises in JavaScript
+
+Promises are a fundamental concept in JavaScript for handling asynchronous operations. They represent a value that may be available now, in the future, or never. Promises provide a cleaner alternative to callback functions for managing asynchronous code.
+
+## What is a Promise?
+
+A Promise is an object that represents the eventual completion (or failure) of an asynchronous operation and its resulting value. It has three possible states:
+
+1. **Pending**: Initial state, neither fulfilled nor rejected
+2. **Fulfilled**: The operation completed successfully
+3. **Rejected**: The operation failed
+
+## Why Use Promises?
+
+Promises solve several problems with callback-based asynchronous code:
+- Avoid "callback hell" (deeply nested callbacks)
+- Provide better error handling
+- Enable chaining of asynchronous operations
+- Make asynchronous code more readable and maintainable
+
+## Creating a Promise
+
+```javascript
+const myPromise = new Promise((resolve, reject) => {
+  // Asynchronous operation here
+  if (/* operation successful */) {
+    resolve('Success value'); // Fulfill the promise
+  } else {
+    reject('Error reason'); // Reject the promise
+  }
+});
+```
+
+## Using Promises
+
+### Basic Usage
+
+```javascript
+myPromise
+  .then(value => {
+    // Handle successful fulfillment
+    console.log(value); // "Success value"
+  })
+  .catch(error => {
+    // Handle rejection
+    console.error(error); // "Error reason"
+  });
+```
+
+### Promise Chaining
+
+Promises can be chained to perform sequential asynchronous operations:
+
+```javascript
+fetchData()
+  .then(processData)
+  .then(saveData)
+  .then(result => {
+    console.log('All operations completed:', result);
+  })
+  .catch(error => {
+    console.error('Something failed:', error);
+  });
+```
+
+### Promise Methods
+
+1. **Promise.all()**: Waits for all promises to resolve or any to reject
+   ```javascript
+   Promise.all([promise1, promise2, promise3])
+     .then(values => {
+       console.log(values); // Array of results
+     });
+   ```
+
+2. **Promise.race()**: Returns when the first promise settles
+   ```javascript
+   Promise.race([promise1, promise2])
+     .then(value => {
+       console.log('First to complete:', value);
+     });
+   ```
+
+3. **Promise.allSettled()**: Waits for all promises to complete (regardless of success/failure)
+   ```javascript
+   Promise.allSettled([promise1, promise2])
+     .then(results => {
+       results.forEach(result => {
+         if (result.status === 'fulfilled') {
+           console.log('Success:', result.value);
+         } else {
+           console.log('Failed:', result.reason);
+         }
+       });
+     });
+   ```
+
+## Async/Await Syntax
+
+Modern JavaScript provides `async/await` syntax that makes working with promises even cleaner:
+
+```javascript
+async function fetchData() {
+  try {
+    const data = await myPromise; // Wait for promise to resolve
+    console.log(data);
+    const moreData = await anotherPromise;
+    return moreData;
+  } catch (error) {
+    console.error(error);
+  }
+}
+```
+
+## Real-World Examples
+
+### Fetch API (HTTP Requests)
+
+```javascript
+fetch('https://api.example.com/data')
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error('Error:', error));
+
+// With async/await
+async function getData() {
+  try {
+    const response = await fetch('https://api.example.com/data');
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+```
+
+### File Reading (Node.js)
+
+```javascript
+const fs = require('fs').promises;
+
+fs.readFile('file.txt', 'utf8')
+  .then(content => console.log(content))
+  .catch(error => console.error('Error reading file:', error));
+```
+
+## Error Handling Best Practices
+
+1. Always include `.catch()` or `try/catch` with `await`
+2. Don't forget to return promises in chains
+3. Handle both operational errors and programmer errors
+4. Consider using global error handlers for uncaught promise rejections
+
+```javascript
+// Global unhandled rejection handler
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+```
+
+Promises are essential for modern JavaScript development, especially when working with APIs, databases, file systems, or any other asynchronous operations.
+
+# Comprehensive Guide to React Hooks
+
+React Hooks are functions that let you "hook into" React state and lifecycle features from function components. Introduced in React 16.8, they revolutionized how we write React components by enabling stateful logic in functional components.
+
+## Basic Hooks
+
+### 1. `useState`
+
+**Purpose**: Manages state in functional components
+
+```jsx
+import { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0); // Initial state
+
+  return (
+    <div>
+      <p>You clicked {count} times</p>
+      <button onClick={() => setCount(count + 1)}>
+        Click me
+      </button>
+    </div>
+  );
+}
+```
+
+**Key Points**:
+- Returns a stateful value and a function to update it
+- State is preserved between re-renders
+- Can be used multiple times in a component
+
+### 2. `useEffect`
+
+**Purpose**: Handles side effects in functional components (replaces lifecycle methods)
+
+```jsx
+import { useState, useEffect } from 'react';
+
+function Example() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    // Runs after every render (like componentDidMount + componentDidUpdate)
+    fetchData().then(result => setData(result));
+    
+    // Cleanup function (like componentWillUnmount)
+    return () => {
+      cancelRequest();
+    };
+  }, []); // Empty array means run only once on mount
+
+  return <div>{data ? data : 'Loading...'}</div>;
+}
+```
+
+**Dependency Array**:
+- `[]`: Run only once (mount/unmount)
+- `[value]`: Run when `value` changes
+- No array: Run after every render
+
+### 3. `useContext`
+
+**Purpose**: Accesses context without nesting
+
+```jsx
+import { useContext } from 'react';
+const ThemeContext = React.createContext('light');
+
+function ThemedButton() {
+  const theme = useContext(ThemeContext);
+  return <button className={theme}>Click me</button>;
+}
+```
+
+## Additional Hooks
+
+### 4. `useReducer`
+
+**Purpose**: Manages complex state logic (alternative to `useState`)
+
+```jsx
+import { useReducer } from 'react';
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'increment':
+      return { count: state.count + 1 };
+    case 'decrement':
+      return { count: state.count - 1 };
+    default:
+      throw new Error();
+  }
+}
+
+function Counter() {
+  const [state, dispatch] = useReducer(reducer, { count: 0 });
+  
+  return (
+    <>
+      Count: {state.count}
+      <button onClick={() => dispatch({ type: 'decrement' })}>-</button>
+      <button onClick={() => dispatch({ type: 'increment' })}>+</button>
+    </>
+  );
+}
+```
+
+### 5. `useRef`
+
+**Purpose**: Creates mutable ref objects that persist across renders
+
+```jsx
+import { useRef } from 'react';
+
+function TextInput() {
+  const inputRef = useRef(null);
+
+  const focusInput = () => {
+    inputRef.current.focus();
+  };
+
+  return (
+    <>
+      <input ref={inputRef} type="text" />
+      <button onClick={focusInput}>Focus Input</button>
+    </>
+  );
+}
+```
+
+### 6. `useMemo`
+
+**Purpose**: Memoizes expensive calculations
+
+```jsx
+import { useMemo } from 'react';
+
+function ExpensiveComponent({ a, b }) {
+  const result = useMemo(() => {
+    return complexCalculation(a, b);
+  }, [a, b]); // Only recompute when a or b changes
+
+  return <div>{result}</div>;
+}
+```
+
+### 7. `useCallback`
+
+**Purpose**: Memoizes functions to prevent unnecessary re-renders
+
+```jsx
+import { useCallback } from 'react';
+
+function ParentComponent() {
+  const [count, setCount] = useState(0);
+
+  const handleClick = useCallback(() => {
+    console.log('Clicked!', count);
+  }, [count]); // Recreate only when count changes
+
+  return <ChildComponent onClick={handleClick} />;
+}
+```
+
+## Less Common But Useful Hooks
+
+### 8. `useLayoutEffect`
+
+**Purpose**: Similar to `useEffect` but fires synchronously after DOM mutations
+
+```jsx
+import { useLayoutEffect } from 'react';
+
+function MeasureElement() {
+  const [size, setSize] = useState({});
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    setSize(ref.current.getBoundingClientRect());
+  }, []);
+
+  return <div ref={ref}>{JSON.stringify(size)}</div>;
+}
+```
+
+### 9. `useImperativeHandle`
+
+**Purpose**: Customizes the instance value exposed when using `ref`
+
+```jsx
+import { forwardRef, useImperativeHandle, useRef } from 'react';
+
+const FancyInput = forwardRef((props, ref) => {
+  const inputRef = useRef();
+  
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      inputRef.current.focus();
+    },
+    shake: () => {
+      // Custom method
+    }
+  }));
+
+  return <input ref={inputRef} {...props} />;
+});
+
+// Usage
+function Parent() {
+  const inputRef = useRef();
+  return (
+    <>
+      <FancyInput ref={inputRef} />
+      <button onClick={() => inputRef.current.shake()}>Shake</button>
+    </>
+  );
+}
+```
+
+### 10. `useDebugValue`
+
+**Purpose**: Displays a label in React DevTools for custom hooks
+
+```jsx
+import { useDebugValue, useState } from 'react';
+
+function useCustomHook() {
+  const [value] = useState(null);
+  useDebugValue(value ? 'Value exists' : 'Value is null');
+  return value;
+}
+```
+
+## Custom Hooks
+
+You can create your own hooks by composing existing ones:
+
+```jsx
+import
